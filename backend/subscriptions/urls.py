@@ -1,8 +1,6 @@
 from django.urls import path
-from . import views
+from .views import CreateSubscriberPaymentView
 
 urlpatterns = [
-    # Razorpay endpoints
-    path('create-order/', views.create_razorpay_order, name='create_razorpay_order'),
-    path('verify-payment/', views.verify_payment, name='verify_payment'),  # ✅ Add this
+    path('create-subscriber-payment/', CreateSubscriberPaymentView.as_view(), name='create-subscriber-payment'),
 ]

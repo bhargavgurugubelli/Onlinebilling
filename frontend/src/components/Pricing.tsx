@@ -8,6 +8,8 @@ import {
   Grid,
   Typography,
   CardActions,
+  Button,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,6 +23,7 @@ interface PricingPlan {
 
 const Pricing = (): JSX.Element => {
   const [pricing, setPricing] = useState<PricingPlan[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,122 +31,154 @@ const Pricing = (): JSX.Element => {
     axios
       .get<PricingPlan[]>(`${baseUrl}pricing`)
       .then((res) => setPricing(res.data))
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
   const handlePayClick = (planId: string, planName: string, amount: number) => {
-    // ✅ Store correct keys expected in Pay.tsx
     localStorage.setItem('pendingPlanId', planId);
     localStorage.setItem('pendingPlanName', planName);
     localStorage.setItem('pendingAmount', amount.toString());
 
-    const mobile = localStorage.getItem('new_user_mobile');
-
-    if (mobile) {
-      navigate('/pay');
-    } else {
-      navigate('/signup', {
-        state: {
-          planId,
-          planName,
-          amount,
-        },
-      });
-    }
+    navigate('/pay'); // Always go to /pay — login removed
   };
 
-  return (
-    <div id="pricing">
-      <Box sx={{ pt: 6, pb: 10, px: 2, backgroundColor: '#f3f0ff' }}>
-        <Box mb={4}>
-          <Typography variant="h4" align="center" fontWeight={700} gutterBottom sx={{ textTransform: 'uppercase' }}>
-            Pricing
-          </Typography>
-          <Typography variant="subtitle1" align="center" color="text.secondary">
-            Choose a plan that works for you
-          </Typography>
-        </Box>
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-        <Container>
-          <Grid container spacing={4} justifyContent="center">
-            {pricing.map((item, index) => (
-              <Grid item xs={12} sm={6} md={4} key={index}>
-                <Box sx={{ position: 'relative' }}>
-                  {index === 1 && (
-                    <Box sx={{
+  return (
+    <Box id="pricing" sx={{ pt: 8, pb: 12, px: 3, backgroundColor: '#f9f9fb' }}>
+      <Box mb={6} textAlign="center">
+        <Typography
+          variant="h4"
+          fontWeight={700}
+          sx={{ textTransform: 'uppercase', letterSpacing: 2, mb: 1 }}
+        >
+          Pricing
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary" maxWidth={480} mx="auto">
+          Choose a plan that works best for your business. Upgrade or downgrade anytime.
+        </Typography>
+      </Box>
+
+      <Container maxWidth="lg">
+        <Grid container spacing={4} justifyContent="center">
+          {pricing.map((item, index) => (
+            <Grid item xs={12} sm={6} md={4} key={item.planId}>
+              <Box sx={{ position: 'relative' }}>
+                {index === 1 && (
+                  <Box
+                    sx={{
                       position: 'absolute',
                       top: 12,
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      backgroundColor: '#ffc107',
-                      color: '#000',
-                      padding: '4px 12px',
-                      fontSize: '12px',
+                      bgcolor: 'warning.main',
+                      color: 'common.black',
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: '12px',
                       fontWeight: 'bold',
-                      borderRadius: '8px',
-                      zIndex: 1,
-                    }}>
-                      Most Popular
-                    </Box>
-                  )}
+                      fontSize: '0.75rem',
+                      zIndex: 10,
+                      textTransform: 'uppercase',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    Most Popular
+                  </Box>
+                )}
 
-                  <Card sx={{
+                <Card
+                  sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 3,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
-                    borderTop: '6px solid #28a745',
+                    boxShadow: 3,
+                    borderTop: `6px solid ${index === 1 ? '#ffc107' : '#28a745'}`,
                     p: 3,
                     backgroundColor: '#fff',
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    cursor: 'pointer',
                     '&:hover': {
-                      transform: 'translateY(-5px)',
-                      boxShadow: '0 16px 30px rgba(0,0,0,0.12)',
+                      transform: 'translateY(-8px)',
+                      boxShadow: 6,
                     },
-                  }}>
-                    <CardContent>
-                      <Typography variant="h6" align="center" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 1 }}>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="h3" align="center" sx={{ color: '#28a745', fontWeight: 800, fontSize: '2.5rem' }}>
-                        {item.currency}{item.price}
-                      </Typography>
-                      <Typography variant="subtitle2" align="center" color="text.secondary" sx={{ mb: 2 }}>
-                        per month
-                      </Typography>
-                      <Box>
-                        {item.features.map((feature, idx) => (
-                          <Typography key={idx} align="center" variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
-                            • {feature.name}
-                          </Typography>
-                        ))}
-                      </Box>
-                    </CardContent>
+                  }}
+                  aria-label={`${item.title} pricing plan`}
+                >
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      align="center"
+                      fontWeight={700}
+                      textTransform="uppercase"
+                      gutterBottom
+                      sx={{ letterSpacing: 1 }}
+                    >
+                      {item.title}
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      align="center"
+                      color="success.main"
+                      fontWeight={800}
+                      sx={{ fontSize: { xs: '2rem', md: '2.5rem' } }}
+                    >
+                      {item.currency}
+                      {item.price}
+                    </Typography>
+                    <Typography
+                      variant="subtitle2"
+                      align="center"
+                      color="text.secondary"
+                      sx={{ mb: 3 }}
+                    >
+                      per month
+                    </Typography>
+                    <Box>
+                      {item.features.map((feature, idx) => (
+                        <Typography
+                          key={idx}
+                          align="center"
+                          variant="body2"
+                          color="text.primary"
+                          sx={{ mb: 0.7 }}
+                        >
+                          • {feature.name}
+                        </Typography>
+                      ))}
+                    </Box>
+                  </CardContent>
 
-                    <Box flexGrow={1} />
-                    <CardActions sx={{ justifyContent: 'center', mt: 2 }}>
-                      <button
-                        onClick={() => handlePayClick(item.planId, item.title, item.price)}
-                        style={{
-                          padding: '8px 16px',
-                          background: '#D82C4E',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Pay ₹{item.price}
-                      </button>
-                    </CardActions>
-                  </Card>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-    </div>
+                  <Box flexGrow={1} />
+                  <CardActions sx={{ justifyContent: 'center', mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="large"
+                      onClick={() =>
+                        handlePayClick(item.planId, item.title, item.price)
+                      }
+                      aria-label={`Pay for ${item.title} plan`}
+                      fullWidth
+                    >
+                      Pay ₹{item.price}
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      </Container>
+    </Box>
   );
 };
 

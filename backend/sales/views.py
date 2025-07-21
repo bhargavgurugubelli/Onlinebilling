@@ -31,7 +31,8 @@ def create_invoice(request):
 @parser_classes([MultiPartParser])
 @permission_classes([IsAuthenticated])
 def upload_menu_pdf(request):
-    pdf_file = request.FILES.get('pdf')
+    pdf_file = request.FILES.get('pdf') # ✅ match the frontend key name
+
     if not pdf_file:
         return Response({"error": "No PDF uploaded"}, status=400)
 
@@ -85,7 +86,8 @@ def list_invoices(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-    business = request.user.business
+    business = getattr(request.user, 'business', None)
+
     invoices = SalesInvoice.objects.filter(business=business)
 
     total_invoices = invoices.count()

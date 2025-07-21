@@ -1,151 +1,82 @@
-import logging
-# import stripe  # ⛔ No longer needed if switching to Razorpay
-from django.conf import settings
-from django.contrib.auth.models import User, Group
-from django.http.response import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Subscriber, Payment
+from django.db import transaction
 
-# from .models import StripeCustomer  # ⛔ Only needed if you're still using it
+User = get_user_model()
 
-# ---------- STRIPE CONFIG ENDPOINT ----------
-# @csrf_exempt
-# def stripe_config(request):
-#     if request.method == 'GET':
-#         stripe_config = {'publicKey': settings.STRIPE_PUBLISHABLE_KEY}
-#         return JsonResponse(stripe_config, safe=False)
+class CreateSubscriberPaymentView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
 
-# ---------- STRIPE WEBHOOK HANDLER ----------
-# @csrf_exempt
-# def stripe_webhook(request):
-#     logger = logging.getLogger('subscriptions')
-# 
-#     stripe.api_key = settings.STRIPE_SECRET_KEY
-#     endpoint_secret = settings.STRIPE_ENDPOINT_SECRET
-#     payload = request.body
-#     sig_header = request.META['HTTP_STRIPE_SIGNATURE']
-#     event = None
-# 
-#     try:
-#         event = stripe.Webhook.construct_event(
-#             payload, sig_header, endpoint_secret
-#         )
-#     except ValueError as e:
-#         # Invalid payload
-#         return HttpResponse(status=400)
-#     except stripe.error.SignatureVerificationError as e:
-#         # Invalid signature
-#         return HttpResponse(status=400)
-# 
-#     # Handle the checkout.session.completed event
-#     if event['type'] == 'checkout.session.completed':
-#         logger.info(f"Processing an `{event.get('type')}` Stripe event")
-#         session = event['data']['object']
-# 
-#         # Fetch all the required data from session
-#         client_reference_id = session.get('client_reference_id')
-#         stripe_customer_id = session.get('customer')
-#         stripe_subscription_id = session.get('subscription')
-# 
-#         # Get the user and create a new StripeCustomer
-#         user = User.objects.get(id=client_reference_id)
-#         StripeCustomer.objects.create(
-#             user=user,
-#             stripeCustomerId=stripe_customer_id,
-#             stripeSubscriptionId=stripe_subscription_id,
-#         )
-#         logger.info(f'{user.username} (user #{client_reference_id}) just subscribed.')
-# 
-#         # Get product name from subscription data (will be used as Group name)
-#         stripe_customer = StripeCustomer.objects.get(user=client_reference_id)
-#         stripe.api_key = settings.STRIPE_SECRET_KEY
-#         subscription = stripe.Subscription.retrieve(stripe_customer.stripeSubscriptionId)
-#         product_name = stripe.Product.retrieve(subscription.plan.product).name
-# 
-#         # Add Group to user
-#         logger.info(f'Adding {user.username} (user #{user.id}) to Group `{product_name}`')
-#         user.groups.add(Group.objects.get(name=product_name))
-# 
-#         # Add staff status to user
-#         logger.info(f'Granting {user.username} (user #{user.id}) with staff status')
-#         user.is_staff = True
-#         user.save()
-# 
-#     elif event.get('type') == 'customer.subscription.deleted':
-#         logger.info(f"Processing an `{event.get('type')}` Stripe event")
-# 
-#         # Get product name from subscription data (will be used as Group name)
-#         stripe_customer_id = event.get('data').get('object').get('customer')
-#         user = User.objects.get(id=StripeCustomer.objects.get(stripeCustomerId=stripe_customer_id).user_id)
-#         stripe_customer = StripeCustomer.objects.get(user=user)
-#         stripe.api_key = settings.STRIPE_SECRET_KEY
-#         subscription = stripe.Subscription.retrieve(stripe_customer.stripeSubscriptionId)
-#         product_name = stripe.Product.retrieve(subscription.plan.product).name
-# 
-#         # Remove Group from user
-#         logger.info(f'Removing {user.username} (user #{user.id}) from Group `{product_name}`')
-#         user.groups.remove(Group.objects.get(name=product_name))
-# 
-#         # Revoke staff status to user
-#         logger.info(f'Revoking {user.username} (user #{user.id}) staff status')
-#         user.is_staff = False
-#         user.save()
-# 
-#     else:
-#         logger.info('')
-#         logger.info('')
-#         logger.info(f"Event {event.get('type')} is not one of the available choices so it won't be handled")
-# 
-#     return HttpResponse(status=200)
+        print("====== Incoming Payment Data ======")
+        print(data)
 
+        mobile = data.get('mobile')
+        plan_id = data.get('plan_id')
+        plan_name = data.get('plan_name')
+        amount = data.get('amount')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_signature = data.get('razorpay_signature')
+        payment_status = data.get('payment_status')
 
-import razorpay
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.conf import settings
-
-@csrf_exempt
-def create_razorpay_order(request):
-    if request.method == "POST":
-        amount = 50000  # ₹500.00 in paise
-
-        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-
-        order_data = {
-            "amount": amount,
-            "currency": "INR",
-            "payment_capture": 1,  # Auto capture
-        }
-
-        order = client.order.create(data=order_data)
-
-        return JsonResponse(order)
-
-@csrf_exempt
-def verify_payment(request):
-    if request.method == "POST":
-        import json
-        data = json.loads(request.body)
-
-        razorpay_order_id = data.get("razorpay_order_id")
-        razorpay_payment_id = data.get("razorpay_payment_id")
-        razorpay_signature = data.get("razorpay_signature")
-
-        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        if not mobile:
+            return Response({"error": "Mobile is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 🔐 Signature verification (VERY IMPORTANT)
-            client.utility.verify_payment_signature({
-                'razorpay_order_id': razorpay_order_id,
-                'razorpay_payment_id': razorpay_payment_id,
-                'razorpay_signature': razorpay_signature
+            subscriber, created = Subscriber.objects.get_or_create(mobile=mobile)
+        except Exception as e:
+            print("❌ Failed to get or create subscriber:", e)
+            return Response({"error": "Failed to create subscriber"}, status=500)
+
+        try:
+            payment = Payment.objects.create(
+                subscriber=subscriber,
+                plan_id=plan_id,
+                plan_name=plan_name,
+                amount=amount,
+                razorpay_payment_id=razorpay_payment_id,
+                razorpay_order_id=razorpay_order_id,
+                razorpay_signature=razorpay_signature,
+                payment_status=payment_status,
+            )
+        except Exception as e:
+            print("❌ Payment save failed:", e)
+            return Response({"error": "Payment save failed"}, status=500)
+
+        try:
+            user, created = User.objects.get_or_create(mobile=mobile)
+            if created:
+                user.set_unusable_password()
+                user.save()
+        except Exception as e:
+            print("❌ User creation failed:", e)
+            return Response({"error": "User creation failed"}, status=500)
+
+        try:
+            if subscriber.user is None:
+                subscriber.user = user
+                subscriber.save()
+        except Exception as e:
+            print("❌ Linking subscriber to user failed:", e)
+            return Response({"error": "Failed to link subscriber to user"}, status=500)
+
+        try:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "token": {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                },
+                "subscriber_id": subscriber.id,
+                "payment_id": payment.id,
+                "message": "Subscriber and payment created successfully"
             })
-
-            # ✅ SUCCESS: Signature is valid
-            print("✔ Verified payment:", razorpay_payment_id)
-
-            return JsonResponse({"status": "success", "message": "Payment verified successfully"})
-        
-        except razorpay.errors.SignatureVerificationError:
-            # ❌ FAIL: Signature invalid
-            print("❌ Invalid signature for:", razorpay_payment_id)
-            return JsonResponse({"status": "failure", "message": "Invalid signature"}, status=400)
+        except Exception as e:
+            print("❌ Token generation failed:", e)
+            return Response({"error": "Token generation failed"}, status=500)

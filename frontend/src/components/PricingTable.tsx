@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import RazorpayButton from '../components/RazorpayButton';
+import RazorpayButton from './RazorpayButton';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 

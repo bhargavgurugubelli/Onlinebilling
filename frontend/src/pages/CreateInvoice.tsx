@@ -24,7 +24,9 @@ export default function CreateInvoice() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   useEffect(() => {
-    axios.get('/api/menu-items/').then((res) => setMenuItems(res.data));
+    axios.get('http://127.0.0.1:8000/api/menu-items/')
+      .then((res) => setMenuItems(res.data))
+      .catch(() => alert('Failed to load menu items'));
   }, []);
 
   const handleItemChange = (index: number, value: MenuItem | null) => {
@@ -71,9 +73,7 @@ export default function CreateInvoice() {
     };
 
     try {
-      const res = await axios.post('/api/sales/create-invoice/', payload);
-
-      // redirect to success page
+      const res = await axios.post('http://127.0.0.1:8000/api/sales/create-invoice/', payload);
       window.location.href = `/invoice-success/${res.data.invoice_id}`;
     } catch (err) {
       alert('Failed to create invoice');

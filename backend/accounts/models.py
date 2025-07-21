@@ -1,9 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 
-# Create your models here.
-
-
 class CustomUserManager(BaseUserManager):
     def create_user(self, mobile, password=None, **extra_fields):
         if not mobile:
@@ -18,11 +15,8 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(mobile, password, **extra_fields)
 
-
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     mobile = models.CharField(max_length=15, unique=True)
-    email = models.EmailField(blank=True, null=True)
-    name = models.CharField(max_length=100, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 

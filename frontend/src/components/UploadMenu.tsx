@@ -1,48 +1,97 @@
 import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  Typography,
+  Paper,
+  LinearProgress,
+  Alert,
+} from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
 
-const UploadMenu = () => {
+export default function UploadMenu() {
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(e.target.files?.[0] || null);
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+      setMessage(null);
+      setError(null);
+    }
   };
 
   const handleUpload = async () => {
-    if (!file) return alert("Please select a PDF file first");
-    setUploading(true);
+    if (!file) {
+      setError("Please select a file first.");
+      return;
+    }
+
+    let token = localStorage.getItem('access_token');
+
+    // ✅ Fix: Remove quotes if stored as a string with ""
+    if (token?.startsWith('"') && token?.endsWith('"')) {
+      token = token.slice(1, -1);
+    }
+
+    if (!token) {
+      setError("You must be logged in to upload.");
+      return;
+    }
 
     const formData = new FormData();
     formData.append('pdf', file);
 
-    try {
-     const res = await axios.post('http://localhost:8000/api/sales/upload-menu/', formData, {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
 
-        headers: { 'Content-Type': 'multipart/form-data' },
+    try {
+      const response = await axios.post('http://127.0.0.1:8000/api/sales/upload-menu/', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      alert('Upload successful');
-    } catch (err) {
-      console.error(err);
-      alert('Upload failed');
+
+      setMessage(`✅ Upload successful! ${response.data.items_added} items added.`);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setError(`❌ Upload failed: ${err?.response?.data?.error || err.message}`);
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-4 border rounded bg-white shadow">
-      <h2 className="text-lg font-semibold mb-2">Upload Menu PDF</h2>
-      <input type="file" accept=".pdf" onChange={handleFileChange} />
-      <button
-        onClick={handleUpload}
-        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        disabled={uploading}
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </button>
-    </div>
-  );
-};
+    <Box p={3}>
+      <Typography variant="h5" gutterBottom>📄 Upload Menu PDF</Typography>
 
-export default UploadMenu;
+      <Paper elevation={2} sx={{ p: 2, my: 2 }}>
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+        />
+      </Paper>
+
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<CloudUploadIcon />}
+        onClick={handleUpload}
+        disabled={loading}
+      >
+        Upload
+      </Button>
+
+      {loading && <LinearProgress sx={{ mt: 2 }} />}
+
+      {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}
+      {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+    </Box>
+  );
+}

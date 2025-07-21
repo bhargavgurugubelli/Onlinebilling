@@ -1,3 +1,4 @@
+// ✅ MobileOtpDrawer.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Drawer, Box, Typography, IconButton, TextField, Button, Divider, InputAdornment
@@ -21,11 +22,12 @@ const MobileOtpDrawer: React.FC<Props> = ({ open, onClose }) => {
   const handleSendOtp = async () => {
     if (!mobile) return;
     try {
-      await axios.post('http://127.0.0.1:8000/api/send-otp/', { mobile });
+      await axios.post('http://127.0.0.1:8000/api/auth/send-otp/', { mobile });
       setOtpSent(true);
       setResendTimer(60);
+      console.log('📨 OTP sent to mobile:', mobile);
     } catch (err) {
-      console.error('Failed to send OTP:', err);
+      console.error('❌ Failed to send OTP:', err);
       alert('Failed to send OTP. Try again.');
     }
   };
@@ -33,10 +35,11 @@ const MobileOtpDrawer: React.FC<Props> = ({ open, onClose }) => {
   const handleResendOtp = async () => {
     if (!mobile) return;
     try {
-      await axios.post('http://127.0.0.1:8000/api/send-otp/', { mobile });
+      await axios.post('http://127.0.0.1:8000/api/auth/send-otp/', { mobile });
       setResendTimer(60);
+      console.log('🔁 OTP resent to mobile:', mobile);
     } catch (err) {
-      console.error('Resend failed:', err);
+      console.error('❌ Resend failed:', err);
       alert('Could not resend OTP.');
     }
   };
@@ -44,24 +47,31 @@ const MobileOtpDrawer: React.FC<Props> = ({ open, onClose }) => {
   const handleVerifyOtp = async () => {
     if (!otp || !mobile) return;
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/verify-otp/', {
+      console.log('🧪 Verifying OTP:', otp, 'for mobile:', mobile);
+      const res = await axios.post('http://127.0.0.1:8000/api/auth/verify-otp/', {
         mobile,
         otp,
       });
 
+      console.log('✅ OTP verification response:', res.data);
+
       if (res.data.existing_user) {
-        // ✅ Existing user → Save token and mark as paid
-        localStorage.setItem('access_token', res.data.token.access);
-        localStorage.setItem('refresh_token', res.data.token.refresh);
-        localStorage.setItem('has_paid', 'true'); // ✅ Key fix here
+        sessionStorage.setItem('token', res.data.access);
+        sessionStorage.setItem('refreshToken', res.data.refresh);
+        sessionStorage.setItem('has_paid', 'true');
+
+        onClose(); // ✅ Close drawer
         navigate('/dashboard');
       } else {
-        // 🆕 New user → Save mobile to localStorage
+        // ✅ Store mobile so pricing page can access it
         localStorage.setItem('new_user_mobile', mobile);
+        sessionStorage.setItem('new_user_mobile', mobile);
+
+        onClose(); // ✅ Close drawer
         navigate('/pricing-table');
       }
     } catch (err) {
-      console.error('OTP verification failed:', err);
+      console.error('❌ OTP verification failed:', err);
       alert('Invalid OTP. Try again.');
     }
   };

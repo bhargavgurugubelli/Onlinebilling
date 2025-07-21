@@ -1,5 +1,12 @@
+// ✅ App.tsx (No PrivateRoute)
 import { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  Navigate,
+} from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -16,6 +23,7 @@ import Dashboard from './pages/Dashboard';
 import CreateInvoice from './pages/CreateInvoice';
 import KitchenDashboard from './pages/KitchenDashboard';
 import Pay from './pages/Pay';
+import UploadMenu from './components/UploadMenu';
 
 const NotFound = () => (
   <div style={{ textAlign: 'center', marginTop: '20vh' }}>
@@ -23,12 +31,17 @@ const NotFound = () => (
   </div>
 );
 
-// ✅ Route Wrapper with conditional layout
 const AppRoutes = () => {
   const location = useLocation();
 
-  // Routes where we HIDE navbar + hero
-  const hideLayoutRoutes = ['/dashboard', '/sales/create', '/pay'];
+  const hideLayoutRoutes = [
+    '/dashboard',
+    '/sales/create',
+    '/pay',
+    '/upload-menu',
+    '/kitchen',
+  ];
+
   const shouldHideLayout = hideLayoutRoutes.includes(location.pathname);
 
   return shouldHideLayout ? (
@@ -36,14 +49,16 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/sales/create" element={<CreateInvoice />} />
       <Route path="/pay" element={<Pay />} />
+      <Route path="/upload-menu" element={<UploadMenu />} />
+      <Route path="/kitchen" element={<KitchenDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   ) : (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/pricing-table" element={<Pricing />} />
-        <Route path="/kitchen" element={<KitchenDashboard />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/pricing-table" element={<Navigate to="/pricing" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
@@ -67,7 +82,7 @@ const App = (): JSX.Element => {
   useEffect(() => {
     const localTheme = window.localStorage.getItem('themeMode');
     setMode(localTheme || 'light');
-    ReactGA.initialize('YOUR-GOOGLE-ANALYTICS-MEASUREMENT-ID'); // Optional
+    ReactGA.initialize('YOUR-GOOGLE-ANALYTICS-MEASUREMENT-ID');
     ReactGA.pageview(window.location.pathname + window.location.search);
   }, []);
 

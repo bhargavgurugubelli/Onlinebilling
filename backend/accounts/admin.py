@@ -1,31 +1,35 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import CustomUser
 
+class CustomUserCreationForm(UserCreationForm):
+    class Meta:
+        model = CustomUser
+        fields = ('mobile',)
 
-@admin.register(CustomUser)
-class CustomUserAdmin(BaseUserAdmin):
+class CustomUserChangeForm(UserChangeForm):
+    class Meta:
+        model = CustomUser
+        fields = ('mobile',)
+
+class CustomUserAdmin(UserAdmin):
     model = CustomUser
-
-    list_display = ('id', 'mobile', 'email', 'name', 'is_staff', 'is_superuser')
-    search_fields = ('mobile', 'email', 'name')
-    ordering = ('id',)
-
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
+    list_display = ('mobile', 'is_staff', 'is_active')
+    list_filter = ('is_staff', 'is_active')
     fieldsets = (
-        (None, {'fields': ('mobile',)}),
-        (_('Personal info'), {'fields': ('name', 'email')}),
-        (_('Permissions'), {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-        }),
-        (_('Important dates'), {'fields': ('last_login',)}),
+        (None, {'fields': ('mobile', 'password')}),
+        ('Permissions', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
     )
-
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('mobile', 'is_staff', 'is_superuser'),
-        }),
+            'fields': ('mobile', 'password1', 'password2', 'is_staff', 'is_active')}
+        ),
     )
+    search_fields = ('mobile',)
+    ordering = ('mobile',)
 
-    readonly_fields = ('last_login',)
+admin.site.register(CustomUser, CustomUserAdmin)

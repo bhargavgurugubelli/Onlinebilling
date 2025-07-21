@@ -1,3 +1,4 @@
+// ✅ Pay.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -40,12 +41,25 @@ const Pay: React.FC = () => {
         image: '/logo.png',
         handler: async function (response: any) {
           try {
-            const res = await axios.post('http://127.0.0.1:8000/api/create-user/', { mobile });
+            console.log('✅ Razorpay response:', response);
 
-            // Save tokens and payment flag
+            const res = await axios.post('http://127.0.0.1:8000/api/subscriptions/create-subscriber-payment/', {
+              mobile,
+              plan_id: planId,
+              plan_name: planName,
+              amount,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              payment_status: 'success',
+            });
+
+            console.log('✅ Backend response:', res.data);
+
             localStorage.setItem('access_token', res.data.token.access);
             localStorage.setItem('refresh_token', res.data.token.refresh);
             localStorage.setItem('has_paid', 'true');
+            console.log('🎉 Tokens saved to localStorage');
 
             // Cleanup
             localStorage.removeItem('new_user_mobile');
@@ -56,7 +70,7 @@ const Pay: React.FC = () => {
             navigate('/dashboard');
           } catch (error) {
             alert('Payment successful, but user creation failed.');
-            console.error(error);
+            console.error('❌ Payment success but backend failed:', error);
           }
         },
         prefill: {
