@@ -17,16 +17,19 @@ class CustomUserAdmin(UserAdmin):
     model = CustomUser
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
-    list_display = ('mobile', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active')
+    list_display = ('mobile', 'is_active', 'is_trial', 'is_paid')
+    list_filter = ('is_active', 'is_trial', 'is_paid')
+    
     fieldsets = (
-        (None, {'fields': ('mobile', 'password')}),
-        ('Permissions', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
+        (None, {'fields': ('mobile',)}),
+        ('Status Info', {'fields': ('is_active', 'is_trial', 'is_paid')}),
+        ('Dates', {'fields': ('trial_expires_at', 'date_joined')}),
     )
+
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('mobile', 'password1', 'password2', 'is_staff', 'is_active')}
+            'fields': ('mobile', 'is_active')}
         ),
     )
     search_fields = ('mobile',)

@@ -1,5 +1,13 @@
 from rest_framework import serializers
 from .models import SalesInvoice, InvoiceItem
+from .models import BusinessProfile
+
+
+
+class BusinessProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessProfile
+        fields = ['business_name', 'logo']
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
     class Meta:

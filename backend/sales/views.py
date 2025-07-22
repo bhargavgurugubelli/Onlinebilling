@@ -2,18 +2,23 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import status, permissions
 from .serializers import SalesInvoiceSerializer
 from .models import SalesInvoice, MenuItem
 from django.db.models import Sum
+from .models import BusinessProfile
+from .serializers import BusinessProfileSerializer
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny  # ✅ Required for @permission_classes
+
 import fitz  # PyMuPDF
 
-# ✅ 1. Create Sales Invoice (returns order_id)
+# ✅ 1. Create Sales Invoice
 @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def create_invoice(request):
-    serializer = SalesInvoiceSerializer(data=request.data)
+    serializer = SalesInvoiceSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         invoice = serializer.save()
         return Response({
@@ -26,12 +31,12 @@ def create_invoice(request):
     return Response({'status': 'error', 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ✅ 2. Upload PDF and extract menu items
+# ✅ 2. Upload PDF Menu Items
 @api_view(['POST'])
 @parser_classes([MultiPartParser])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def upload_menu_pdf(request):
-    pdf_file = request.FILES.get('pdf') # ✅ match the frontend key name
+    pdf_file = request.FILES.get('pdf')
 
     if not pdf_file:
         return Response({"error": "No PDF uploaded"}, status=400)
@@ -44,10 +49,10 @@ def upload_menu_pdf(request):
             text = page.get_text()
             for line in text.split('\n'):
                 parts = line.rsplit(' ', 1)
-                if len(parts) == 2 and parts[1].isdigit():
+                if len(parts) == 2 and parts[1].replace('.', '', 1).isdigit():
                     name, rate = parts
                     items.append(MenuItem(
-                        business=request.user.business,  # assumes user has business field
+                        business=request.user,
                         name=name.strip(),
                         rate=float(rate.strip())
                     ))
@@ -59,13 +64,13 @@ def upload_menu_pdf(request):
         return Response({"error": str(e)}, status=500)
 
 
-# ✅ 3. Search for menu items by name (autocomplete)
+# ✅ 3. Search Menu Items (for logged-in user)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def search_menu_items(request):
     query = request.GET.get('q', '')
     items = MenuItem.objects.filter(
-        business=request.user.business,
+        business=request.user,
         name__icontains=query
     )[:10]
 
@@ -73,22 +78,20 @@ def search_menu_items(request):
     return Response(data)
 
 
-# ✅ 4. List all invoices for dashboard (latest transactions)
+# ✅ 4. List Invoices (only for this user)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def list_invoices(request):
-    invoices = SalesInvoice.objects.filter(business=request.user.business).order_by('-created_at')
+    invoices = SalesInvoice.objects.filter(business=request.user).order_by('-created_at')
     serializer = SalesInvoiceSerializer(invoices, many=True)
     return Response(serializer.data)
 
 
-# ✅ 5. Dashboard Summary API (for dashboard cards)
+# ✅ 5. Dashboard Summary (only for this user)
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def dashboard_summary(request):
-    business = getattr(request.user, 'business', None)
-
-    invoices = SalesInvoice.objects.filter(business=business)
+    invoices = SalesInvoice.objects.filter(business=request.user)
 
     total_invoices = invoices.count()
     total_sales = invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
@@ -101,3 +104,22 @@ def dashboard_summary(request):
         'latest_order_id': latest_invoice.order_id if latest_invoice else None,
         'pending_orders': pending_orders,
     })
+
+class BusinessProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        profile, created = BusinessProfile.objects.get_or_create(user=request.user)
+        serializer = BusinessProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Profile saved successfully'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_free_trial(request):
+    user = request.user
+    print("🎉 Trial started for:", user)
+    return Response({"message": "Trial started"}, status=200)
